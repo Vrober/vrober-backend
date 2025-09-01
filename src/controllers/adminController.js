@@ -1,0 +1,471 @@
+import User from '../models/user.js';
+import Vendor from '../models/vendor.js';
+import Service from '../models/services.js';
+import Booking from '../models/booking.js';
+
+// Delete user (Admin only)
+export async function deleteUser(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const deletedUser = await User.findByIdAndDelete(id);
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.status(200).json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to delete user', 
+            error: error.message 
+        });
+    }
+}
+
+// Delete vendor (Admin only)
+export async function deleteVendor(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const deletedVendor = await Vendor.findByIdAndDelete(id);
+        if (!deletedVendor) {
+            return res.status(404).json({ message: 'Vendor not found' });
+        }
+        
+        res.status(200).json({ message: 'Vendor deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to delete vendor', 
+            error: error.message 
+        });
+    }
+}
+
+// Create user (Admin only)
+export async function createUser(req, res) {
+    try {
+        const { name, mobileNo, email, address, pinCode, dob, gender, liveLocation, profileImg, role } = req.body;
+        
+        // Check if user already exists
+        const existingUser = await User.findOne({ 
+            $or: [{ email }, { mobileNo }] 
+        });
+        
+        if (existingUser) {
+            return res.status(400).json({ 
+                message: 'User with this email or mobile number already exists' 
+            });
+        }
+
+        const newUser = new User({
+            name,
+            mobileNo,
+            email,
+            address,
+            pinCode,
+            dob,
+            gender,
+            liveLocation,
+            profileImg,
+            role: role || 'user'
+        });
+
+        await newUser.save();
+        
+        res.status(201).json({ 
+            message: 'User created successfully', 
+            user: newUser 
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            message: 'Failed to create user', 
+            error: error.message 
+        });
+    }
+}
+
+// Create vendor (Admin only)
+export async function createVendor(req, res) {
+    try {
+        const { 
+            name, 
+            mobileNo, 
+            email, 
+            address, 
+            pinCode, 
+            dob, 
+            gender, 
+            liveLocation, 
+            toolsAvailable, 
+            experience, 
+            aadhar, 
+            paymentInfo, 
+            imageUri,
+            isVerify 
+        } = req.body;
+        
+        // Check if vendor already exists
+        const existingVendor = await Vendor.findOne({ 
+            $or: [{ email }, { mobileNo }] 
+        });
+        
+        if (existingVendor) {
+            return res.status(400).json({ 
+                message: 'Vendor with this email or mobile number already exists' 
+            });
+        }
+
+        const newVendor = new Vendor({
+            name,
+            mobileNo,
+            email,
+            address,
+            pinCode,
+            dob,
+            gender,
+            liveLocation,
+            toolsAvailable,
+            experience,
+            aadhar,
+            paymentInfo,
+            imageUri,
+            role: 'vendor',
+            isVerify: isVerify || false
+        });
+
+        await newVendor.save();
+        
+        res.status(201).json({ 
+            message: 'Vendor created successfully', 
+            vendor: newVendor 
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            message: 'Failed to create vendor', 
+            error: error.message 
+        });
+    }
+}
+
+// Get all users (Admin only)
+export async function getAllUsers(req, res) {
+    try {
+        const { page = 1, limit = 10, role } = req.query;
+        
+        const filter = role ? { role } : {};
+        
+        const users = await User.find(filter)
+            .select('-password') // Exclude password from response
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+            
+        const total = await User.countDocuments(filter);
+        
+        res.status(200).json({
+            users,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            total
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to fetch users', 
+            error: error.message 
+        });
+    }
+}
+
+// Get all vendors (Admin only)
+export async function getAllVendors(req, res) {
+    try {
+        const { page = 1, limit = 10, isVerify } = req.query;
+        
+        const filter = isVerify !== undefined ? { isVerify: isVerify === 'true' } : {};
+        
+        const vendors = await Vendor.find(filter)
+            .select('-password') // Exclude password from response
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+            
+        const total = await Vendor.countDocuments(filter);
+        
+        res.status(200).json({
+            vendors,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            total
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to fetch vendors', 
+            error: error.message 
+        });
+    }
+}
+
+// Get all services (Admin only)
+export async function getAllServices(req, res) {
+    try {
+        const { page = 1, limit = 10, serviceType } = req.query;
+        
+        const filter = serviceType ? { serviceType } : {};
+        
+        const services = await Service.find(filter)
+            .populate('vendorId', 'name email mobileNo')
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+            
+        const total = await Service.countDocuments(filter);
+        
+        res.status(200).json({
+            services,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            total
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to fetch services', 
+            error: error.message 
+        });
+    }
+}
+
+// Create service (Admin only)
+export async function createService(req, res) {
+    try {
+        const { 
+            serviceName, 
+            vendorId, 
+            serviceType, 
+            toolsRequired, 
+            imageUrl, 
+            description, 
+            location 
+        } = req.body;
+        
+        // Verify vendor exists
+        const vendor = await Vendor.findById(vendorId);
+        if (!vendor) {
+            return res.status(404).json({ message: 'Vendor not found' });
+        }
+        
+        const newService = new Service({
+            serviceName,
+            vendorId,
+            serviceType,
+            toolsRequired,
+            imageUrl,
+            description,
+            location
+        });
+        
+        await newService.save();
+        
+        // Add service to vendor's services array
+        await Vendor.findByIdAndUpdate(vendorId, {
+            $push: { services: newService._id }
+        });
+        
+        res.status(201).json({ 
+            message: 'Service created successfully', 
+            service: newService 
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            message: 'Failed to create service', 
+            error: error.message 
+        });
+    }
+}
+
+// Update service (Admin only)
+export async function updateService(req, res) {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        
+        const updatedService = await Service.findByIdAndUpdate(
+            id,
+            updates,
+            { new: true, runValidators: true }
+        );
+        
+        if (!updatedService) {
+            return res.status(404).json({ message: 'Service not found' });
+        }
+        
+        res.status(200).json({ 
+            message: 'Service updated successfully', 
+            service: updatedService 
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            message: 'Failed to update service', 
+            error: error.message 
+        });
+    }
+}
+
+// Delete service (Admin only)
+export async function deleteService(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const service = await Service.findById(id);
+        if (!service) {
+            return res.status(404).json({ message: 'Service not found' });
+        }
+        
+        // Remove service from vendor's services array
+        await Vendor.findByIdAndUpdate(service.vendorId, {
+            $pull: { services: id }
+        });
+        
+        // Delete the service
+        await Service.findByIdAndDelete(id);
+        
+        res.status(200).json({ message: 'Service deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to delete service', 
+            error: error.message 
+        });
+    }
+}
+
+// Get all bookings (Admin only)
+export async function getAllBookings(req, res) {
+    try {
+        const { page = 1, limit = 10, status, vendorId, userId } = req.query;
+        
+        const filter = {};
+        if (status) filter.status = status;
+        if (vendorId) filter.vendorId = vendorId;
+        if (userId) filter.userId = userId;
+        
+        const bookings = await Booking.find(filter)
+            .populate('userId', 'name email mobileNo')
+            .populate('vendorId', 'name email mobileNo')
+            .populate('serviceId', 'serviceName serviceType')
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+            
+        const total = await Booking.countDocuments(filter);
+        
+        res.status(200).json({
+            bookings,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            total
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to fetch bookings', 
+            error: error.message 
+        });
+    }
+}
+
+// Update booking status (Admin only)
+export async function updateBookingStatus(req, res) {
+    try {
+        const { id } = req.params;
+        const { status, cancellationReason } = req.body;
+        
+        const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'cancelled'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+        
+        const updateData = { status };
+        if (status === 'cancelled' && cancellationReason) {
+            updateData.cancellationReason = cancellationReason;
+            updateData.cancelledBy = 'admin';
+        }
+        
+        const updatedBooking = await Booking.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true }
+        ).populate('userId', 'name email mobileNo')
+         .populate('vendorId', 'name email mobileNo')
+         .populate('serviceId', 'serviceName serviceType');
+        
+        if (!updatedBooking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        
+        res.status(200).json({ 
+            message: 'Booking status updated successfully', 
+            booking: updatedBooking 
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to update booking status', 
+            error: error.message 
+        });
+    }
+}
+
+// Delete booking (Admin only)
+export async function deleteBooking(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const deletedBooking = await Booking.findByIdAndDelete(id);
+        if (!deletedBooking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        
+        res.status(200).json({ message: 'Booking deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to delete booking', 
+            error: error.message 
+        });
+    }
+}
+
+// Get dashboard stats (Admin only)
+export async function getDashboardStats(req, res) {
+    try {
+        const totalUsers = await User.countDocuments();
+        const totalVendors = await Vendor.countDocuments();
+        const totalServices = await Service.countDocuments();
+        const totalBookings = await Booking.countDocuments();
+        
+        const pendingBookings = await Booking.countDocuments({ status: 'pending' });
+        const completedBookings = await Booking.countDocuments({ status: 'completed' });
+        const verifiedVendors = await Vendor.countDocuments({ isVerify: true });
+        
+        const recentBookings = await Booking.find()
+            .populate('userId', 'name')
+            .populate('vendorId', 'name')
+            .populate('serviceId', 'serviceName')
+            .sort({ createdAt: -1 })
+            .limit(5);
+        
+        res.status(200).json({
+            stats: {
+                totalUsers,
+                totalVendors,
+                totalServices,
+                totalBookings,
+                pendingBookings,
+                completedBookings,
+                verifiedVendors
+            },
+            recentBookings
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to fetch dashboard stats', 
+            error: error.message 
+        });
+    }
+}
