@@ -1,4 +1,5 @@
-import User from '../models/user.js';
+import User from '../models/user.models.js';
+import Booking from '../models/booking.models.js';
 
 // Create user profile
 export async function createUser(req, res) {
@@ -46,7 +47,7 @@ export async function createUser(req, res) {
 // Update user details
 export async function updateUser(req, res) {
     try {
-        const userId = req.auth.userId; // From Clerk authentication
+    const userId = req.user?._id; // From JWT middleware
         
         const updates = req.body;
         
@@ -73,6 +74,50 @@ export async function updateUser(req, res) {
             message: 'Server error', 
             error: error.message 
         });
+    }
+}
+
+// Get current authenticated user's profile with basic stats
+export async function getMe(req, res) {
+    try {
+        const userId = req.user?._id;
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const user = await User.findById(userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Derived stats
+        const [orders, ratingAgg, spendAgg] = await Promise.all([
+            Booking.countDocuments({ userId }),
+            Booking.aggregate([
+                { $match: { userId, rating: { $exists: true, $ne: null } } },
+                { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+            ]),
+            Booking.aggregate([
+                { $match: { userId, status: { $in: ['accepted', 'completed'] } } },
+                { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
+            ])
+        ]);
+
+        const avgRating = ratingAgg?.[0]?.avgRating || 0;
+        const totalSpend = spendAgg?.[0]?.total || 0;
+        // Simple points heuristic: 1 point per ₹10 spent
+        const points = Math.round(totalSpend / 10);
+
+        res.status(200).json({
+            user,
+            stats: {
+                orders,
+                avgRating,
+                points
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
     }
 }
 

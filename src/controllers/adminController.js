@@ -1,7 +1,8 @@
-import User from '../models/user.js';
-import Vendor from '../models/vendor.js';
-import Service from '../models/services.js';
-import Booking from '../models/booking.js';
+// Corrected model import paths to match existing filenames
+import User from '../models/user.models.js';
+import Vendor from '../models/vendor.models.js';
+import Service from '../models/services.models.js';
+import Booking from '../models/booking.models.js';
 
 // Delete user (Admin only)
 export async function deleteUser(req, res) {
@@ -465,6 +466,129 @@ export async function getDashboardStats(req, res) {
     } catch (error) {
         res.status(500).json({ 
             message: 'Failed to fetch dashboard stats', 
+            error: error.message 
+        });
+    }
+}
+
+// Upload service image (Admin only)
+export async function uploadServiceImage(req, res) {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No image file provided' });
+        }
+
+        // Use Cloudinary if configured, otherwise return local path
+        let imageUrl = '';
+        
+        if (process.env.CLOUDINARY_CLOUD_NAME) {
+            // Upload to Cloudinary
+            const { uploadOnCloudinary } = await import('../utils/cloudinary.js');
+            const result = await uploadOnCloudinary(req.file.path);
+            
+            if (!result) {
+                return res.status(500).json({ message: 'Failed to upload image to Cloudinary' });
+            }
+            
+            imageUrl = result.secure_url;
+        } else {
+            // Return local file path
+            imageUrl = `/public/${req.file.filename}`;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: { imageUrl },
+            message: 'Image uploaded successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to upload image', 
+            error: error.message 
+        });
+    }
+}
+
+// Create category (Admin only)
+export async function createCategory(req, res) {
+    try {
+        const { name, description, icon } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ message: 'Category name is required' });
+        }
+
+        // Check if category already exists
+        const existingCategory = await Service.findOne({ category: name });
+        if (existingCategory) {
+            return res.status(400).json({ message: 'Category already exists' });
+        }
+
+        // Create a dummy service entry to register the category (optional)
+        // Or you could create a separate Category model
+        // For now, just return success
+        
+        res.status(201).json({
+            success: true,
+            data: { name, description, icon },
+            message: 'Category created successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to create category', 
+            error: error.message 
+        });
+    }
+}
+
+// Update category (Admin only)
+export async function updateCategory(req, res) {
+    try {
+        const { name } = req.params;
+        const { description, icon, newName } = req.body;
+
+        // Update all services with this category if name is changing
+        if (newName && newName !== name) {
+            await Service.updateMany(
+                { category: name },
+                { category: newName }
+            );
+        }
+
+        res.status(200).json({
+            success: true,
+            data: { name: newName || name, description, icon },
+            message: 'Category updated successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to update category', 
+            error: error.message 
+        });
+    }
+}
+
+// Delete category (Admin only)
+export async function deleteCategory(req, res) {
+    try {
+        const { name } = req.params;
+
+        // Check if any services use this category
+        const servicesCount = await Service.countDocuments({ category: name });
+        
+        if (servicesCount > 0) {
+            return res.status(400).json({ 
+                message: `Cannot delete category. ${servicesCount} services are using this category.` 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Category deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            message: 'Failed to delete category', 
             error: error.message 
         });
     }

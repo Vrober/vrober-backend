@@ -1,12 +1,13 @@
-import Booking from '../models/booking.js';
-import Service from '../models/services.js';
-import User from '../models/user.js';
-import Vendor from '../models/vendor.js';
+// Corrected model import paths to actual filenames
+import Booking from '../models/booking.models.js';
+import Service from '../models/services.models.js';
+import User from '../models/user.models.js';
+import Vendor from '../models/vendor.models.js';
 
 // Create a new booking (User)
 export async function createBooking(req, res) {
     try {
-        const userId = req.auth.userId; // From Clerk authentication
+        const userId = req.user?._id; // From JWT middleware
         const { 
             vendorId, 
             serviceId, 
@@ -56,6 +57,14 @@ export async function createBooking(req, res) {
 
         await newBooking.save();
 
+        // Increment bookingCount for the associated service to keep "Most Booked" section accurate
+        // This is non-blocking for the booking creation response; failures are logged but do not prevent booking success
+        try {
+            await Service.findByIdAndUpdate(serviceId, { $inc: { bookingCount: 1 } });
+        } catch (incErr) {
+            console.error('Failed to increment service bookingCount:', incErr?.message || incErr);
+        }
+
         // Populate the response
         const populatedBooking = await Booking.findById(newBooking._id)
             .populate('userId', 'name email mobileNo')
@@ -77,7 +86,7 @@ export async function createBooking(req, res) {
 // Get user's bookings
 export async function getUserBookings(req, res) {
     try {
-        const userId = req.auth.userId;
+        const userId = req.user?._id;
         const { page = 1, limit = 10, status } = req.query;
 
         const filter = { userId };
@@ -111,7 +120,7 @@ export async function getUserBookings(req, res) {
 // Get vendor's bookings/orders
 export async function getVendorBookings(req, res) {
     try {
-        const vendorId = req.auth.userId;
+        const vendorId = req.user?._id;
         const { page = 1, limit = 10, status } = req.query;
 
         const filter = { vendorId };
@@ -145,7 +154,7 @@ export async function getVendorBookings(req, res) {
 // Accept booking (Vendor)
 export async function acceptBooking(req, res) {
     try {
-        const vendorId = req.auth.userId;
+        const vendorId = req.user?._id;
         const { id } = req.params;
         const { vendorNotes } = req.body;
 
@@ -187,7 +196,7 @@ export async function acceptBooking(req, res) {
 // Reject booking (Vendor)
 export async function rejectBooking(req, res) {
     try {
-        const vendorId = req.auth.userId;
+        const vendorId = req.user?._id;
         const { id } = req.params;
         const { cancellationReason } = req.body;
 
@@ -230,7 +239,7 @@ export async function rejectBooking(req, res) {
 // Complete booking (Vendor)
 export async function completeBooking(req, res) {
     try {
-        const vendorId = req.auth.userId;
+        const vendorId = req.user?._id;
         const { id } = req.params;
 
         const booking = await Booking.findById(id);
@@ -271,7 +280,7 @@ export async function completeBooking(req, res) {
 // Cancel booking (User)
 export async function cancelBooking(req, res) {
     try {
-        const userId = req.auth.userId;
+        const userId = req.user?._id;
         const { id } = req.params;
         const { cancellationReason } = req.body;
 
@@ -314,7 +323,7 @@ export async function cancelBooking(req, res) {
 // Add rating and review (User)
 export async function addRatingReview(req, res) {
     try {
-        const userId = req.auth.userId;
+        const userId = req.user?._id;
         const { id } = req.params;
         const { rating, review } = req.body;
 

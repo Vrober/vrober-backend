@@ -1,5 +1,6 @@
 import express from 'express';
-import { requireAuth } from '@clerk/express';
+// Switched from Clerk to custom JWT middleware
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { 
     createBooking,
     getUserBookings,
@@ -14,15 +15,15 @@ import {
 const router = express.Router();
 
 // User routes
-router.post('/', requireAuth(), createBooking);
-router.get('/user', requireAuth(), getUserBookings);
-router.put('/:id/cancel', requireAuth(), cancelBooking);
-router.put('/:id/rate', requireAuth(), addRatingReview);
+router.post('/', verifyJWT('user'), createBooking);
+router.get('/user', verifyJWT('user'), getUserBookings);
+router.put('/:id/cancel', verifyJWT('user'), cancelBooking);
+router.put('/:id/rate', verifyJWT('user'), addRatingReview);
 
 // Vendor routes
-router.get('/vendor', requireAuth(), getVendorBookings);
-router.put('/:id/accept', requireAuth(), acceptBooking);
-router.put('/:id/reject', requireAuth(), rejectBooking);
-router.put('/:id/complete', requireAuth(), completeBooking);
+router.get('/vendor', verifyJWT('vendor'), getVendorBookings);
+router.put('/:id/accept', verifyJWT('vendor'), acceptBooking);
+router.put('/:id/reject', verifyJWT('vendor'), rejectBooking);
+router.put('/:id/complete', verifyJWT('vendor'), completeBooking);
 
 export default router;

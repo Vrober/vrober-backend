@@ -5,7 +5,12 @@
 	"scripts": {
 		"start": "node src/index.js",
 		"dev": "nodemon src/index.js",
-		"format": "prettier --write ."
+		"seed": "node src/scripts/seed.js",
+		"seed:clean": "node src/scripts/cleanup-seed.js",
+		"seed:admin": "node src/scripts/seed-admin.js",
+		"format": "prettier --write .",
+		"qa:db": "node --experimental-json-modules src/scripts/qa-db.mjs",
+		"qa:http": "node --experimental-json-modules src/scripts/qa-http.mjs"
 	},
 	"type": "module",
 	"keywords": [],

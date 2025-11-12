@@ -2,14 +2,15 @@
 
 ## Base URL
 ```
-http://localhost:3000/api/v1
+http://localhost:8000/api/v1
 ```
 
 ## Authentication
-All protected routes require Clerk authentication. Include the authorization header:
+Protected routes use JWT-based auth with HTTP-only cookies and/or Authorization header. Include the header if using bearer tokens directly:
 ```
-Authorization: Bearer <clerk_token>
+Authorization: Bearer <jwt_token>
 ```
+Otherwise, authenticate via the login endpoint to receive a cookie and call APIs with `withCredentials: true` from the client.
 
 ---
 
@@ -178,6 +179,9 @@ Authorization: Bearer <clerk_token>
   - `limit` (optional): Items per page (default: 10)
   - `serviceType` (optional): Filter by service type
   - `vendorId` (optional): Filter by vendor ID
+  - `category` (optional): Filter by top-level category (e.g., Cleaning, Grooming)
+  - `popular` (optional): `true` to return only popular services
+  - `premium` (optional): `true` to return only premium services
 - **Response**:
 ```json
 {
@@ -211,10 +215,54 @@ Authorization: Bearer <clerk_token>
 - **Query Parameters**:
   - `q` (optional): Search query
   - `serviceType` (optional): Filter by service type
+  - `category` (optional): Filter by category
+  - `popular` (optional): `true` to restrict to popular
+  - `premium` (optional): `true` to restrict to premium
   - `minRating` (optional): Minimum rating filter
   - `page` (optional): Page number
   - `limit` (optional): Items per page
 - **Response**: Same as Get All Services
+
+### Get Service Categories
+- **GET** `/services/categories`
+- **Description**: Get distinct list of service categories
+- **Auth**: None
+- **Response**:
+```json
+{
+  "categories": ["Cleaning", "Grooming", "Repair"]
+}
+```
+
+### Get Home Sections
+- **GET** `/services/home-sections`
+- **Description**: Aggregated lists for homepage sections
+- **Auth**: None
+- **Query Parameters**:
+  - `limit` (optional): Items per section (default: 8)
+- **Response**:
+```json
+{
+  "popular": [{"_id": "...", "serviceName": "...", "price": 0 }],
+  "premium": [{"_id": "..."}],
+  "mostBooked": [{"_id": "...", "bookingCount": 12 }]
+}
+```
+
+### Get Search Suggestions
+- **GET** `/services/suggestions`
+- **Description**: Suggest service names based on query substring
+- **Auth**: None
+- **Query Parameters**:
+  - `q` (required): Query text
+- **Response**:
+```json
+{
+  "suggestions": [
+    { "id": "<serviceId>", "name": "<serviceName>", "price": 999 }
+  ]
+}
+```
 
 ### Get Service by ID
 - **GET** `/services/:id`
@@ -349,6 +397,8 @@ Authorization: Bearer <clerk_token>
   }
 }
 ```
+
+> Note: On successful booking creation, the system increments the associated Service's `bookingCount`. This powers the "Most Booked" homepage section over time.
 
 ### Get User Bookings
 - **GET** `/bookings/user`

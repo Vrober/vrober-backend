@@ -1,4 +1,4 @@
-import Vendor from '../models/vendor.js';
+import Vendor from '../models/vendor.models.js';
 
 // Create vendor profile
 export async function createVendor(req, res) {
@@ -65,7 +65,7 @@ export async function createVendor(req, res) {
 // Update vendor details
 export async function updateVendor(req, res) {
     try {
-        const vendorId = req.auth.userId; // From Clerk authentication
+    const vendorId = req.user?._id; // From JWT middleware
         
         const updates = req.body;
         

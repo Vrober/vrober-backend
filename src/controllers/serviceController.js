@@ -1,15 +1,25 @@
-import Service from '../models/services.js';
-import Vendor from '../models/vendor.js';
+// Corrected model import paths (previously pointed to non-existing filenames)
+import Service from '../models/services.models.js';
+import Vendor from '../models/vendor.models.js';
 
 // Get all services (Public)
 export async function getAllServices(req, res) {
     try {
-        const { page = 1, limit = 10, serviceType, vendorId, location } = req.query;
+        const { page = 1, limit = 10, serviceType, vendorId, location, category, popular, premium } = req.query;
         
         const filter = {};
         
         if (serviceType) {
             filter.serviceType = serviceType;
+        }
+        if (category) {
+            filter.category = category;
+        }
+        if (popular === 'true') {
+            filter.isPopular = true;
+        }
+        if (premium === 'true') {
+            filter.isPremium = true;
         }
         
         if (vendorId) {
@@ -105,7 +115,7 @@ export async function getServicesByVendor(req, res) {
 // Search services (Public)
 export async function searchServices(req, res) {
     try {
-        const { q, serviceType, minRating, maxPrice } = req.query;
+        const { q, serviceType, minRating, maxPrice, category, popular, premium } = req.query;
         const { page = 1, limit = 10 } = req.query;
         
         const filter = {};
@@ -119,6 +129,15 @@ export async function searchServices(req, res) {
         
         if (serviceType) {
             filter.serviceType = serviceType;
+        }
+        if (category) {
+            filter.category = category;
+        }
+        if (popular === 'true') {
+            filter.isPopular = true;
+        }
+        if (premium === 'true') {
+            filter.isPremium = true;
         }
         
         if (minRating) {
@@ -144,5 +163,58 @@ export async function searchServices(req, res) {
             message: 'Failed to search services', 
             error: error.message 
         });
+    }
+}
+
+// Home aggregated sections (Popular, Premium, Most Booked)
+export async function getHomeSections(req, res) {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const popular = await Service.find({ isPopular: true })
+            .sort({ rating: -1 })
+            .limit(limit);
+        const premium = await Service.find({ isPremium: true })
+            .sort({ createdAt: -1 })
+            .limit(limit);
+        const mostBooked = await Service.find({ bookingCount: { $gt: 0 } })
+            .sort({ bookingCount: -1 })
+            .limit(limit);
+        res.status(200).json({
+            popular,
+            premium,
+            mostBooked
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch home sections', error: error.message });
+    }
+}
+
+// Get distinct high-level categories (Public)
+export async function getDistinctCategories(req, res) {
+    try {
+        // Return only non-empty category strings
+        const categories = await Service.distinct('category', { category: { $exists: true, $ne: '' } });
+        res.status(200).json({ categories });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch categories', error: error.message });
+    }
+}
+
+// Lightweight search suggestions (names only)
+export async function getSearchSuggestions(req, res) {
+    try {
+        const { q = '', limit = 5 } = req.query;
+        if (!q || String(q).trim().length === 0) {
+            return res.status(200).json({ suggestions: [] });
+        }
+        const regex = new RegExp(String(q).trim(), 'i');
+        const docs = await Service.find({ serviceName: { $regex: regex } })
+            .select('serviceName _id price')
+            .limit(parseInt(limit))
+            .sort({ bookingCount: -1, rating: -1 });
+        const suggestions = docs.map(d => ({ id: d._id, name: d.serviceName, price: d.price }));
+        res.status(200).json({ suggestions });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch suggestions', error: error.message });
     }
 }

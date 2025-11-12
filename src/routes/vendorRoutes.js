@@ -1,6 +1,6 @@
 import express from 'express';
-import { requireAuth } from '@clerk/express';
 import { createVendor, updateVendor } from '../controllers/vendorController.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/', createVendor);
 
 // Update vendor details (protected route)
-router.put('/', requireAuth(), updateVendor);
+router.put('/', verifyJWT('vendor'), updateVendor);
 
 export default router;
 

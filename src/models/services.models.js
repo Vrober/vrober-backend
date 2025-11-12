@@ -16,6 +16,22 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // High-level category used by category pages (e.g., 'Cleaning', 'Repair')
+    category: {
+      type: String,
+      index: true,
+      trim: true,
+    },
+    // Base price for the service (supports booking pricing)
+    price: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Human readable duration (e.g. '45 mins', '2 hrs')
+    duration: {
+      type: String,
+    },
     toolsRequired: [
       {
         type: String,
@@ -45,6 +61,11 @@ const serviceSchema = new mongoose.Schema(
       lat: { type: Number },
       lng: { type: Number },
     },
+    // Home page curation and ranking
+    isPopular: { type: Boolean, default: false, index: true },
+    isPremium: { type: Boolean, default: false, index: true },
+    isMostBooked: { type: Boolean, default: false, index: true },
+    bookingCount: { type: Number, default: 0, min: 0, index: true },
   },
   { timestamps: true }
 );
