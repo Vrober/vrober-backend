@@ -2,11 +2,32 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
+import dotenv from "dotenv";
+import connectDb from "./db/index.db.js";
+
+dotenv.config();
 
 const app = express();
 
-import dotenv from "dotenv";
-dotenv.config();
+// Initialize database connection for Vercel
+let dbConnected = false;
+const initializeDatabase = async () => {
+	if (!dbConnected) {
+		try {
+			await connectDb();
+			dbConnected = true;
+			console.log("✅ Database initialized for Vercel");
+		} catch (error) {
+			console.error("❌ Database connection failed:", error);
+		}
+	}
+};
+
+// Middleware to ensure DB connection on each request (for serverless)
+app.use(async (req, res, next) => {
+	await initializeDatabase();
+	next();
+});
 
 app.use(
 	cors({
@@ -16,7 +37,7 @@ app.use(
 			"http://localhost:3000", // Legacy support
 			"https://www.vrober.com", // Production frontend
 			"https://vrober.com", // Production frontend (without www)
-			"https://api.vrober.com", // Production API
+			"https://apivrober.vercel.app", // Vercel API
 		],
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

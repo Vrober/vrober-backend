@@ -10,6 +10,8 @@ Backend/node_modules/
 dist/
 build/
 
+.env.development
+
 
 ### Node ###
 # Logs
