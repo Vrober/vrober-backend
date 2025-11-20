@@ -14,6 +14,9 @@ app.use(
 			process.env.FRONTEND_URL || "http://localhost:3001",
 			process.env.ADMIN_URL || "http://localhost:3002",
 			"http://localhost:3000", // Legacy support
+			"https://www.vrober.com", // Production frontend
+			"https://vrober.com", // Production frontend (without www)
+			"https://api.vrober.com", // Production API
 		],
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
