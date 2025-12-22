@@ -33,21 +33,36 @@ app.use(
 	cors({
 		origin: function(origin, callback) {
 			const allowedOrigins = [
+				// Environment variables (production)
 				process.env.FRONTEND_URL || "http://localhost:3000",
 				process.env.ADMIN_URL || "http://localhost:3001",
 				process.env.PARTNER_URL || "http://localhost:3003",
-				"http://localhost:3001", // Admin panel
-				"http://localhost:3002", // Legacy admin
-				"http://localhost:3003", // Partner panel
-				"http://localhost:3000", // Frontend
-				"http://localhost:8000", // Backend (for testing)
-				"https://www.vrober.com",
+				
+				// Local development
+				"http://localhost:3000",
+				"http://localhost:3001",
+				"http://localhost:3002",
+				"http://localhost:3003",
+				"http://localhost:8000",
+				
+				// Production domains
 				"https://vrober.com",
+				"https://www.vrober.com",
+				"https://admin.vrober.com",
+				"https://www.admin.vrober.com",
+				"https://partner.vrober.com",
+				"https://www.partner.vrober.com",
+				
+				// Vercel deployment
 				"https://apivrober.vercel.app",
 			];
 			
-			// Allow requests with no origin (like mobile apps or curl requests)
-			if (!origin || allowedOrigins.includes(origin)) {
+			// Check if origin matches exactly or use regex for subdomains
+			const isAllowed = !origin || 
+				allowedOrigins.includes(origin) ||
+				/^https:\/\/[a-z0-9-]+\.vrober\.com$/.test(origin); // Matches any subdomain of vrober.com
+			
+			if (isAllowed) {
 				callback(null, true);
 			} else {
 				callback(new Error('Not allowed by CORS'));

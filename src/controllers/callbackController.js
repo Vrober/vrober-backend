@@ -53,16 +53,32 @@ export async function listCallbacks(req, res) {
 	}
 }
 
+export async function getCallbackById(req, res) {
+	try {
+		const { id } = req.params;
+		const request = await CallbackRequest.findById(id);
+		if (!request) {
+			return res.status(404).json({ message: "Callback request not found" });
+		}
+		res.status(200).json({ request });
+	} catch (err) {
+		res.status(500).json({
+			message: "Failed to fetch callback request",
+			error: err.message,
+		});
+	}
+}
+
 export async function updateCallbackStatus(req, res) {
 	try {
 		const { id } = req.params;
-		const { status } = req.body;
+		const { status, notes } = req.body;
 		if (!["new", "contacted", "closed"].includes(status)) {
 			return res.status(400).json({ message: "Invalid status" });
 		}
 		const updated = await CallbackRequest.findByIdAndUpdate(
 			id,
-			{ status },
+			{ status, notes: notes || undefined, contactedAt: status === "contacted" ? new Date() : undefined },
 			{ new: true }
 		);
 		if (!updated)
@@ -74,3 +90,56 @@ export async function updateCallbackStatus(req, res) {
 			.json({ message: "Failed to update status", error: err.message });
 	}
 }
+
+export async function updateCallback(req, res) {
+	try {
+		const { id } = req.params;
+		const { name, phone, preferredTime, note } = req.body;
+
+		if (!name || !phone) {
+			return res.status(400).json({ message: "Name and phone are required" });
+		}
+
+		const updated = await CallbackRequest.findByIdAndUpdate(
+			id,
+			{ name, phone, preferredTime, note },
+			{ new: true }
+		);
+
+		if (!updated) {
+			return res.status(404).json({ message: "Callback request not found" });
+		}
+
+		res.status(200).json({ 
+			message: "Callback request updated", 
+			request: updated 
+		});
+	} catch (err) {
+		res.status(500).json({
+			message: "Failed to update callback request",
+			error: err.message,
+		});
+	}
+}
+
+export async function deleteCallback(req, res) {
+	try {
+		const { id } = req.params;
+		const deleted = await CallbackRequest.findByIdAndDelete(id);
+
+		if (!deleted) {
+			return res.status(404).json({ message: "Callback request not found" });
+		}
+
+		res.status(200).json({ 
+			message: "Callback request deleted", 
+			request: deleted 
+		});
+	} catch (err) {
+		res.status(500).json({
+			message: "Failed to delete callback request",
+			error: err.message,
+		});
+	}
+}
+

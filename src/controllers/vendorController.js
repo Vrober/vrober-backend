@@ -184,7 +184,7 @@ export async function getPartnerBookings(req, res) {
 		const vendorId = req.user?._id;
 		const { status, sort = "-createdAt" } = req.query;
 
-		let query = { partnerId: vendorId };
+		let query = { vendorId: vendorId };
 		if (status) {
 			query.status = status;
 		}
@@ -219,7 +219,7 @@ export async function updateBookingStatus(req, res) {
 			return res.status(404).json({ message: "Booking not found" });
 		}
 
-		if (booking.partnerId.toString() !== vendorId.toString()) {
+		if (booking.vendorId.toString() !== vendorId.toString()) {
 			return res
 				.status(403)
 				.json({ message: "Not authorized to update this booking" });

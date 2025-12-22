@@ -11,6 +11,8 @@ const callbackRequestSchema = new mongoose.Schema(
 			enum: ["new", "contacted", "closed"],
 			default: "new",
 		},
+		notes: { type: String },
+		contactedAt: { type: Date },
 	},
 	{ timestamps: true }
 );
