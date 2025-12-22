@@ -367,15 +367,24 @@ export async function getAllBookings(req, res) {
 		if (vendorId) filter.vendorId = vendorId;
 		if (userId) filter.userId = userId;
 
+		console.log('Admin getAllBookings - filter:', filter);
+
 		const bookings = await Booking.find(filter)
 			.populate("userId", "name email mobileNo")
-			.populate("vendorId", "name email mobileNo")
+			.populate({
+				path: "vendorId",
+				select: "name email mobileNo",
+				options: { strictPopulate: false } // Allow null vendorId
+			})
 			.populate("serviceId", "serviceName serviceType")
 			.limit(limit * 1)
 			.skip((page - 1) * limit)
 			.sort({ createdAt: -1 });
 
 		const total = await Booking.countDocuments(filter);
+
+		console.log('Admin getAllBookings - found:', total, 'bookings');
+		console.log('Admin getAllBookings - returning:', bookings.length, 'bookings for page', page);
 
 		res.status(200).json({
 			success: true,
@@ -387,6 +396,7 @@ export async function getAllBookings(req, res) {
 			}
 		});
 	} catch (error) {
+		console.error('Admin getAllBookings error:', error);
 		res.status(500).json({
 			success: false,
 			message: "Failed to fetch bookings",
