@@ -232,3 +232,30 @@ export async function getSearchSuggestions(req, res) {
 			.json({ message: "Failed to fetch suggestions", error: error.message });
 	}
 }
+
+// Home sections: popular, premium, most booked
+export async function getHomeSections(req, res) {
+	try {
+		const { limit = 10 } = req.query;
+		const lim = parseInt(limit) || 10;
+
+		const [popular, premium, mostBooked] = await Promise.all([
+			Service.find({ isPopular: true })
+				.limit(lim)
+				.sort({ rating: -1, createdAt: -1 }),
+			Service.find({ isPremium: true })
+				.limit(lim)
+				.sort({ rating: -1, createdAt: -1 }),
+			Service.find({ bookingCount: { $gt: 0 } })
+				.limit(lim)
+				.sort({ bookingCount: -1, rating: -1 }),
+		]);
+
+		res.status(200).json({ popular, premium, mostBooked });
+	} catch (error) {
+		res.status(500).json({
+			message: "Failed to fetch home sections",
+			error: error.message,
+		});
+	}
+}
