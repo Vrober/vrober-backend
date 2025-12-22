@@ -31,16 +31,30 @@ app.use(async (req, res, next) => {
 
 app.use(
 	cors({
-		origin: [
-			process.env.FRONTEND_URL || "http://localhost:3001",
-			process.env.ADMIN_URL || "http://localhost:3002",
-			"http://localhost:3000", // Legacy support
-			"https://www.vrober.com", // Production frontend
-			"https://vrober.com", // Production frontend (without www)
-			"https://apivrober.vercel.app", // Vercel API
-		],
+		origin: function(origin, callback) {
+			const allowedOrigins = [
+				process.env.FRONTEND_URL || "http://localhost:3000",
+				process.env.ADMIN_URL || "http://localhost:3001",
+				process.env.PARTNER_URL || "http://localhost:3003",
+				"http://localhost:3001", // Admin panel
+				"http://localhost:3002", // Legacy admin
+				"http://localhost:3003", // Partner panel
+				"http://localhost:3000", // Frontend
+				"http://localhost:8000", // Backend (for testing)
+				"https://www.vrober.com",
+				"https://vrober.com",
+				"https://apivrober.vercel.app",
+			];
+			
+			// Allow requests with no origin (like mobile apps or curl requests)
+			if (!origin || allowedOrigins.includes(origin)) {
+				callback(null, true);
+			} else {
+				callback(new Error('Not allowed by CORS'));
+			}
+		},
 		credentials: true,
-		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
 	})
 );
@@ -65,7 +79,6 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import callbackRoutes from "./routes/callbackRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
-import homeSectionRoutes from "./routes/homeSectionRoutes.js";
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
@@ -76,7 +89,6 @@ app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/services", serviceRoutes);
 app.use("/api/v1/callbacks", callbackRoutes);
 app.use("/api/v1/categories", categoryRoutes);
-app.use("/api/v1/home-sections", homeSectionRoutes);
 
 // Health check route
 app.get("/api/v1/health", (req, res) => {

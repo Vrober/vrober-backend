@@ -14,6 +14,7 @@ export async function getAllServices(req, res) {
 			category,
 			popular,
 			premium,
+			sortBy,
 		} = req.query;
 
 		const filter = {};
@@ -38,6 +39,13 @@ export async function getAllServices(req, res) {
 		// If location is provided, you can add geospatial queries here
 		// For now, we'll just return all services
 
+		// Determine sort order
+		let sortOrder = { rating: -1, createdAt: -1 };
+		if (sortBy === 'bookingCount') {
+			sortOrder = { bookingCount: -1, rating: -1 };
+			filter.bookingCount = { $gt: 0 }; // Only show services with bookings
+		}
+
 		const services = await Service.find(filter)
 			.populate(
 				"vendorId",
@@ -45,7 +53,7 @@ export async function getAllServices(req, res) {
 			)
 			.limit(limit * 1)
 			.skip((page - 1) * limit)
-			.sort({ rating: -1, createdAt: -1 });
+			.sort(sortOrder);
 
 		const total = await Service.countDocuments(filter);
 
@@ -182,31 +190,6 @@ export async function searchServices(req, res) {
 			message: "Failed to search services",
 			error: error.message,
 		});
-	}
-}
-
-// Home aggregated sections (Popular, Premium, Most Booked)
-export async function getHomeSections(req, res) {
-	try {
-		const limit = parseInt(req.query.limit) || 10;
-		const popular = await Service.find({ isPopular: true })
-			.sort({ rating: -1 })
-			.limit(limit);
-		const premium = await Service.find({ isPremium: true })
-			.sort({ createdAt: -1 })
-			.limit(limit);
-		const mostBooked = await Service.find({ bookingCount: { $gt: 0 } })
-			.sort({ bookingCount: -1 })
-			.limit(limit);
-		res.status(200).json({
-			popular,
-			premium,
-			mostBooked,
-		});
-	} catch (error) {
-		res
-			.status(500)
-			.json({ message: "Failed to fetch home sections", error: error.message });
 	}
 }
 
