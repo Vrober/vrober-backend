@@ -10,7 +10,7 @@ const bookingSchema = new mongoose.Schema(
 		vendorId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: "Vendor",
-			required: true,
+			required: false, // Optional - assigned by admin later
 		},
 		serviceId: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -39,8 +39,8 @@ const bookingSchema = new mongoose.Schema(
 		},
 		status: {
 			type: String,
-			enum: ["pending", "assigned", "confirmed", "accepted", "in-progress", "completed", "rejected", "cancelled"],
-			default: "pending",
+			enum: ["unassigned", "pending", "assigned", "confirmed", "accepted", "in-progress", "completed", "rejected", "cancelled"],
+			default: "unassigned",
 		},
 		price: {
 			type: Number,

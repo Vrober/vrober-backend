@@ -44,63 +44,24 @@ export async function createBooking(req, res) {
 			return res.status(400).json({ message: "Invalid serviceDate format" });
 		}
 
-		// Verify service exists and get vendor info
-		const service = await Service.findById(serviceId).populate('vendorId');
+		// Verify service exists
+		const service = await Service.findById(serviceId);
 		if (!service) {
 			return res.status(404).json({ message: "Service not found" });
 		}
 		
-		// Use vendorId from request or from service, or create a default vendor
-		let finalVendorId = vendorId || service.vendorId?._id || service.vendorId;
+		// vendorId is optional - will be assigned by admin later
+		let finalVendorId = null;
 		
-		// If no vendor ID found, try to find any vendor or create a default booking vendor
-		if (!finalVendorId) {
-			console.log('No vendor ID provided, looking for available vendors...');
-			
-			// Try to find any existing verified vendor
-			let availableVendor = await Vendor.findOne({ isVerify: true });
-			
-			if (!availableVendor) {
-				// If no verified vendor, find any vendor
-				availableVendor = await Vendor.findOne();
+		// If vendor ID is provided and valid, verify it exists
+		if (vendorId) {
+			const vendor = await Vendor.findById(vendorId);
+			if (vendor) {
+				finalVendorId = vendorId;
+				console.log('Vendor assigned at booking:', finalVendorId);
+			} else {
+				console.warn('Provided vendor ID not found, booking will be unassigned');
 			}
-			
-			if (!availableVendor) {
-				// Create a default vendor for bookings if none exists
-				try {
-					availableVendor = new Vendor({
-						name: "Vrober Service Provider",
-						mobileNo: "9999999999",
-						email: "vendor@vrober.com",
-						address: "Service Center",
-						pinCode: "000000",
-						isVerify: true,
-						services: [],
-						role: "vendor"
-					});
-					await availableVendor.save();
-					console.log('Created default vendor for booking system:', availableVendor._id);
-				} catch (vendorError) {
-					console.error('Failed to create default vendor:', vendorError);
-					return res.status(500).json({ 
-						message: "Unable to assign vendor for booking",
-						error: vendorError.message 
-					});
-				}
-			}
-			
-			finalVendorId = availableVendor._id;
-			console.log('Assigned vendor:', finalVendorId);
-		}
-
-		// Verify vendor exists (should exist now due to fallback)
-		const vendor = await Vendor.findById(finalVendorId);
-		if (!vendor) {
-			console.error('Vendor verification failed for ID:', finalVendorId);
-			return res.status(404).json({ 
-				message: "Vendor not found after fallback creation",
-				vendorId: finalVendorId 
-			});
 		}
 
 		// Check if user exists
@@ -111,7 +72,7 @@ export async function createBooking(req, res) {
 
 		const newBooking = new Booking({
 			userId,
-			vendorId: finalVendorId,
+			vendorId: finalVendorId || undefined, // undefined if no vendor assigned
 			serviceId,
 			bookingDate: new Date(),
 			serviceDate,
@@ -122,7 +83,7 @@ export async function createBooking(req, res) {
 			description,
 			specialInstructions,
 			paymentMethod,
-			status: "pending",
+			status: finalVendorId ? "pending" : "unassigned", // unassigned if no vendor
 		});
 
 		await newBooking.save();
@@ -245,10 +206,11 @@ export async function acceptBooking(req, res) {
 				.json({ message: "Not authorized to accept this booking" });
 		}
 
-		if (booking.status !== "pending") {
+		// Can accept if status is 'assigned' or 'pending'
+		if (!['assigned', 'pending'].includes(booking.status)) {
 			return res
 				.status(400)
-				.json({ message: "Booking is not in pending status" });
+				.json({ message: `Booking cannot be accepted. Current status: ${booking.status}` });
 		}
 
 		const updatedBooking = await Booking.findByIdAndUpdate(
@@ -292,17 +254,19 @@ export async function rejectBooking(req, res) {
 				.json({ message: "Not authorized to reject this booking" });
 		}
 
-		if (booking.status !== "pending") {
+		// Can reject if status is 'assigned' or 'pending'
+		if (!['assigned', 'pending'].includes(booking.status)) {
 			return res
 				.status(400)
-				.json({ message: "Booking is not in pending status" });
+				.json({ message: `Booking cannot be rejected. Current status: ${booking.status}` });
 		}
 
 		const updatedBooking = await Booking.findByIdAndUpdate(
 			id,
 			{
-				status: "rejected",
-				cancellationReason: cancellationReason || "No reason provided",
+				status: "unassigned", // Set back to unassigned for admin to reassign
+				vendorId: null, // Remove vendor assignment
+				cancellationReason: cancellationReason || "Rejected by partner",
 				cancelledBy: "vendor",
 			},
 			{ new: true }
@@ -311,7 +275,8 @@ export async function rejectBooking(req, res) {
 			.populate("serviceId", "serviceName serviceType");
 
 		res.status(200).json({
-			message: "Booking rejected successfully",
+			success: true,
+			message: "Booking rejected. It will be reassigned by admin.",
 			booking: updatedBooking,
 		});
 	} catch (error) {
@@ -339,16 +304,21 @@ export async function completeBooking(req, res) {
 				.json({ message: "Not authorized to complete this booking" });
 		}
 
-		if (booking.status !== "accepted") {
+		// Can only complete if accepted or in-progress
+		if (!['accepted', 'in-progress'].includes(booking.status)) {
 			return res
 				.status(400)
-				.json({ message: "Booking must be accepted before completion" });
+				.json({ message: `Booking cannot be completed. Current status: ${booking.status}` });
 		}
+
+		// Check if payment is done (for cash, we assume it's done on completion)
+		const paymentStatus = booking.paymentMethod === 'cash' ? 'paid' : booking.paymentStatus;
 
 		const updatedBooking = await Booking.findByIdAndUpdate(
 			id,
 			{
 				status: "completed",
+				paymentStatus: paymentStatus,
 				completionDate: new Date(),
 			},
 			{ new: true }
@@ -386,10 +356,11 @@ export async function cancelBooking(req, res) {
 				.json({ message: "Not authorized to cancel this booking" });
 		}
 
-		if (!["pending", "accepted"].includes(booking.status)) {
+		// Allow cancellation for specific statuses only
+		if (!["unassigned", "pending", "assigned", "accepted"].includes(booking.status)) {
 			return res
 				.status(400)
-				.json({ message: "Booking cannot be cancelled in current status" });
+				.json({ message: `Booking cannot be cancelled. Current status: ${booking.status}` });
 		}
 
 		const updatedBooking = await Booking.findByIdAndUpdate(
