@@ -28,14 +28,10 @@ export async function reverseGeocode(req, res) {
 
 		const data = await response.json();
 
-		// Extract city and state
-		const city =
-			data.address?.city ||
-			data.address?.town ||
-			data.address?.village ||
-			data.address?.county ||
-			"Unknown";
-		const state = data.address?.state || "";
+		// Extract address components for full locality
+		const address = data.address || {};
+		const city = address.city || address.town || address.village || address.county || "Unknown";
+		const state = address.state || "";
 		const stateCode = state
 			? state
 					.split(" ")
@@ -45,12 +41,25 @@ export async function reverseGeocode(req, res) {
 					.toUpperCase()
 			: "";
 
-		const locationText = stateCode ? `${city}, ${stateCode}` : city;
+		// Build full locality with area/suburb if available
+		const locality = address.suburb || address.neighbourhood || address.locality || "";
+		
+		let locationText = "";
+		if (locality && city && stateCode) {
+			locationText = `${locality}, ${city}, ${stateCode}`;
+		} else if (locality && city) {
+			locationText = `${locality}, ${city}`;
+		} else if (city && stateCode) {
+			locationText = `${city}, ${stateCode}`;
+		} else {
+			locationText = city;
+		}
 
 		res.status(200).json({
 			location: locationText,
 			city,
 			state: stateCode,
+			locality: locality,
 			address: data.address || {},
 		});
 	} catch (error) {
