@@ -112,4 +112,48 @@ const logoutUser = asyncHandler(async (req, res) => {
 		.json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-export { sendOtp, authUser, logoutUser };
+// Get Current User Profile
+const getCurrentUser = asyncHandler(async (req, res) => {
+	const userId = req.user?._id;
+	if (!userId) throw new ApiError(401, "User not authenticated");
+
+	const user = await User.findById(userId).select("-password");
+	if (!user) throw new ApiError(404, "User not found");
+
+	return res
+		.status(200)
+		.json(new ApiResponse(200, user, "User profile fetched successfully"));
+});
+
+// Update User Profile
+const updateUserProfile = asyncHandler(async (req, res) => {
+	const userId = req.user?._id;
+	if (!userId) throw new ApiError(401, "User not authenticated");
+
+	const { name, email, address, pinCode, dob, gender } = req.body;
+
+	if (!name || !email) {
+		throw new ApiError(400, "Name and email are required");
+	}
+
+	const user = await User.findByIdAndUpdate(
+		userId,
+		{
+			name,
+			email,
+			address,
+			pinCode,
+			dob,
+			gender,
+		},
+		{ new: true }
+	).select("-password");
+
+	if (!user) throw new ApiError(404, "User not found");
+
+	return res
+		.status(200)
+		.json(new ApiResponse(200, user, "Profile updated successfully"));
+});
+
+export { sendOtp, authUser, logoutUser, getCurrentUser, updateUserProfile };
