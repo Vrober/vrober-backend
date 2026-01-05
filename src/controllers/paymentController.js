@@ -16,8 +16,12 @@ const CASHFREE_API_BASE = cashfreeConfig.environment === "production"
  */
 export const createPaymentOrder = async (req, res) => {
 	try {
+		console.log('=== PAYMENT ORDER CREATE REQUEST ===');
+		console.log('User ID:', req.user?._id);
+		console.log('Request body:', req.body);
+		
 		const userId = req.user._id;
-		const { bookingIds, returnUrl } = req.body;
+		const { bookingIds } = req.body;
 
 		// Validate bookingIds
 		if (!bookingIds || !Array.isArray(bookingIds) || bookingIds.length === 0) {
@@ -65,6 +69,10 @@ export const createPaymentOrder = async (req, res) => {
 		// Generate unique order ID
 		const orderId = `ORDER_${Date.now()}_${userId.toString().slice(-6)}`;
 
+		// Build return URL with order_id - always use FRONTEND_URL for consistency
+		const baseReturnUrl = `${process.env.FRONTEND_URL}/payment/callback`;
+		const returnUrlWithOrderId = `${baseReturnUrl}?order_id=${orderId}`;
+
 		// Prepare Cashfree order request
 		const orderRequest = {
 			order_id: orderId,
@@ -77,11 +85,18 @@ export const createPaymentOrder = async (req, res) => {
 				customer_phone: user.mobileNo || user.phone || "9999999999",
 			},
 			order_meta: {
-				return_url: returnUrl || `${process.env.FRONTEND_URL}/payment/callback?order_id=${orderId}`,
+				return_url: returnUrlWithOrderId,
 				notify_url: `${process.env.BACKEND_URL}/api/v1/payments/webhook`,
 			},
 			order_note: `Vrober Service Booking - ${bookings.length} service(s)`,
 		};
+
+		console.log('Creating Cashfree order:', {
+			orderId,
+			amount: totalAmount,
+			returnUrl: returnUrlWithOrderId,
+			notifyUrl: orderRequest.order_meta.notify_url,
+		});
 
 		// Create order in Cashfree via API
 		const response = await axios.post(

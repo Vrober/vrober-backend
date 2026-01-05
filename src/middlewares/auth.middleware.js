@@ -15,7 +15,15 @@ export const verifyJWT = (roles = []) => {
 			const tokenFromCookie = req.cookies?.accessToken;
 			const token = tokenFromHeader || tokenFromCookie;
 
+			console.log('JWT verification:', {
+				hasAuthHeader: !!authHeader,
+				hasTokenFromHeader: !!tokenFromHeader,
+				hasTokenFromCookie: !!tokenFromCookie,
+				tokenExists: !!token
+			});
+
 			if (!token) {
+				console.error('No token provided');
 				return res
 					.status(401)
 					.json({ message: "Unauthorized: No token provided" });
@@ -30,6 +38,8 @@ export const verifyJWT = (roles = []) => {
 				mobileNo: decoded.mobileNo,
 			};
 
+			console.log('JWT verified successfully for user:', decoded._id);
+
 			// Role check if provided
 			if (allowedRoles.length > 0 && !allowedRoles.includes(decoded.role)) {
 				return res
@@ -39,6 +49,7 @@ export const verifyJWT = (roles = []) => {
 
 			next();
 		} catch (err) {
+			console.error('JWT verification error:', err.message);
 			return res.status(401).json({ message: "Unauthorized: Invalid token" });
 		}
 	};

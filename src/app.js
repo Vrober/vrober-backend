@@ -65,12 +65,15 @@ app.use(
 			if (isAllowed) {
 				callback(null, true);
 			} else {
+				console.log('❌ CORS blocked origin:', origin);
 				callback(new Error('Not allowed by CORS'));
 			}
 		},
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-		allowedHeaders: ['Content-Type', 'Authorization'],
+		allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+		exposedHeaders: ['Content-Length', 'Content-Type'],
+		maxAge: 86400, // 24 hours
 	})
 );
 

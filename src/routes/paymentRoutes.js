@@ -10,11 +10,22 @@ import {
 
 const router = express.Router();
 
+// Add logging middleware
+router.use((req, res, next) => {
+	console.log('Payment route accessed:', {
+		method: req.method,
+		path: req.path,
+		url: req.originalUrl,
+		hasAuth: !!req.headers.authorization,
+	});
+	next();
+});
+
 // Protected routes (require authentication)
-router.post("/create-order", verifyJWT, createPaymentOrder);
-router.post("/verify", verifyJWT, verifyPayment);
-router.get("/:orderId", verifyJWT, getPaymentStatus);
-router.get("/", verifyJWT, getUserPayments);
+router.post("/create-order", verifyJWT(), createPaymentOrder);
+router.post("/verify", verifyJWT(), verifyPayment);
+router.get("/:orderId", verifyJWT(), getPaymentStatus);
+router.get("/", verifyJWT(), getUserPayments);
 
 // Public webhook route (Cashfree will call this)
 router.post("/webhook", handleWebhook);
