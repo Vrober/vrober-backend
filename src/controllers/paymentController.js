@@ -73,6 +73,14 @@ export const createPaymentOrder = async (req, res) => {
 		const baseReturnUrl = `${process.env.FRONTEND_URL}/payment/callback`;
 		const returnUrlWithOrderId = `${baseReturnUrl}?order_id=${orderId}`;
 
+		// Format phone number for Cashfree (must be 10 digits)
+		let customerPhone = user.mobileNo || user.phone || "9999999999";
+		// Remove any non-digit characters and take last 10 digits
+		customerPhone = customerPhone.replace(/\D/g, '').slice(-10);
+		if (customerPhone.length !== 10) {
+			customerPhone = "9999999999"; // Fallback to dummy number
+		}
+
 		// Prepare Cashfree order request
 		const orderRequest = {
 			order_id: orderId,
@@ -80,9 +88,9 @@ export const createPaymentOrder = async (req, res) => {
 			order_currency: "INR",
 			customer_details: {
 				customer_id: userId.toString(),
-				customer_name: user.name || "Customer",
-				customer_email: user.email || `${userId}@vrober.com`,
-				customer_phone: user.mobileNo || user.phone || "9999999999",
+				customer_name: (user.name || "Customer").substring(0, 100),
+				customer_email: user.email || `user${userId.toString().slice(-6)}@vrober.com`,
+				customer_phone: customerPhone,
 			},
 			order_meta: {
 				return_url: returnUrlWithOrderId,
@@ -96,6 +104,7 @@ export const createPaymentOrder = async (req, res) => {
 			amount: totalAmount,
 			returnUrl: returnUrlWithOrderId,
 			notifyUrl: orderRequest.order_meta.notify_url,
+			customerPhone: customerPhone,
 		});
 
 		// Create order in Cashfree via API
@@ -157,11 +166,18 @@ export const createPaymentOrder = async (req, res) => {
 		});
 
 	} catch (error) {
-		console.error("Create payment order error:", error.response?.data || error);
-		res.status(500).json({
+		console.error("Create payment order error:", error.response?.data || error.message || error);
+		
+		// Get detailed error from Cashfree response
+		const cashfreeError = error.response?.data;
+		const statusCode = error.response?.status || 500;
+		const errorMessage = cashfreeError?.message || error.message || "Failed to create payment order";
+		
+		res.status(statusCode).json({
 			success: false,
-			message: error.message || "Failed to create payment order",
-			error: error.response?.data || error.message,
+			message: errorMessage,
+			error: cashfreeError || error.message,
+			details: cashfreeError?.details || null,
 		});
 	}
 };
