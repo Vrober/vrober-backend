@@ -95,6 +95,7 @@ import callbackRoutes from "./routes/callbackRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
@@ -106,6 +107,7 @@ app.use("/api/v1/services", serviceRoutes);
 app.use("/api/v1/callbacks", callbackRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/location", locationRoutes);
+app.use("/api/v1/payments", paymentRoutes);
 
 // Health check route
 app.get("/api/v1/health", (req, res) => {
