@@ -69,8 +69,14 @@ export const createPaymentOrder = async (req, res) => {
 		// Generate unique order ID
 		const orderId = `ORDER_${Date.now()}_${userId.toString().slice(-6)}`;
 
-		// Build return URL with order_id - always use FRONTEND_URL for consistency
-		const baseReturnUrl = `${process.env.FRONTEND_URL}/payment/callback`;
+		// Build return URL with order_id - ensure HTTPS is used
+		let frontendUrl = process.env.FRONTEND_URL || "https://www.vrober.com";
+		// Force HTTPS and www
+		frontendUrl = frontendUrl.replace(/^http:/, 'https:');
+		if (!frontendUrl.includes('www.') && frontendUrl.includes('vrober.com')) {
+			frontendUrl = frontendUrl.replace('vrober.com', 'www.vrober.com');
+		}
+		const baseReturnUrl = `${frontendUrl}/payment/callback`;
 		const returnUrlWithOrderId = `${baseReturnUrl}?order_id=${orderId}`;
 
 		// Format phone number for Cashfree (must be 10 digits)
