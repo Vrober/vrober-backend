@@ -14,7 +14,7 @@ export async function reverseGeocode(req, res) {
 
 		// Call Nominatim API from backend (more reliable than frontend)
 		const response = await fetch(
-			`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`,
+			`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=en&zoom=18&lat=${lat}&lon=${lng}`,
 			{
 				headers: {
 					"User-Agent": "Vrober-Service-App/1.0",
@@ -41,25 +41,23 @@ export async function reverseGeocode(req, res) {
 					.toUpperCase()
 			: "";
 
-		// Build full locality with area/suburb if available
-		const locality = address.suburb || address.neighbourhood || address.locality || "";
-		
-		let locationText = "";
-		if (locality && city && stateCode) {
-			locationText = `${locality}, ${city}, ${stateCode}`;
-		} else if (locality && city) {
-			locationText = `${locality}, ${city}`;
-		} else if (city && stateCode) {
-			locationText = `${city}, ${stateCode}`;
-		} else {
-			locationText = city;
-		}
+		// Build full locality string using road + area + city + full state
+		const area = address.suburb || address.neighbourhood || address.locality || address.quarter || "";
+		const road = [address.house_number, address.road].filter(Boolean).join(" ") || address.road || "";
+
+		// Prefer full state name for user clarity
+		const stateFull = address.state || "";
+
+		const prefixParts = [road, area].filter(Boolean);
+		const cityState = [city, stateFull].filter(Boolean).join(", ");
+		const parts = [...prefixParts, cityState].filter(Boolean);
+		const locationText = parts.join(" - ");
 
 		res.status(200).json({
 			location: locationText,
 			city,
-			state: stateCode,
-			locality: locality,
+			state: stateFull,
+			locality: area,
 			address: data.address || {},
 		});
 	} catch (error) {
