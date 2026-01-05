@@ -393,6 +393,48 @@ export const verifyPayment = async (req, res) => {
 							} 
 						}
 					);
+				} else if (latestPayment.payment_status === "FAILED") {
+					payment.status = "FAILED";
+					payment.failureReason = latestPayment.payment_message || "Payment failed";
+					await payment.save();
+
+					// Update bookings
+					await Booking.updateMany(
+						{ _id: { $in: payment.bookingIds } },
+						{ $set: { paymentStatus: "failed" } }
+					);
+				} else if (latestPayment.payment_status === "USER_DROPPED" || latestPayment.payment_status === "CANCELLED") {
+					payment.status = "CANCELLED";
+					await payment.save();
+
+					// Update bookings - keep as pending so user can retry
+					await Booking.updateMany(
+						{ _id: { $in: payment.bookingIds } },
+						{ $set: { paymentStatus: "pending" } }
+					);
+				}
+			} else {
+				// No payment attempts found - user might have cancelled before attempting
+				// Check order status instead
+				try {
+					const orderResponse = await axios.get(
+						`${CASHFREE_API_BASE}/orders/${orderId}`,
+						{
+							headers: {
+								"x-client-id": cashfreeConfig.clientId,
+								"x-client-secret": cashfreeConfig.clientSecret,
+								"x-api-version": "2023-08-01",
+							},
+						}
+					);
+
+					const orderStatus = orderResponse.data.order_status;
+					if (orderStatus === "EXPIRED") {
+						payment.status = "EXPIRED";
+						await payment.save();
+					}
+				} catch (orderError) {
+					console.error("Order status fetch error:", orderError.response?.data || orderError);
 				}
 			}
 		} catch (cfError) {
